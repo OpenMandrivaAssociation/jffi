@@ -1,4 +1,7 @@
 %{?_javapackages_macros:%_javapackages_macros}
+%define _enable_debug_packages %{nil}
+%define debug_package %{nil}
+
 %global commit_hash 52af1f2
 %global tag_hash f2d7914
 %global sofile_version 1.2
