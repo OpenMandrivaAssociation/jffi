@@ -1,0 +1,10 @@
+--- build.xml.orig	2012-11-23 14:48:13.000000000 +0100
++++ build.xml	2012-11-23 14:48:48.700882816 +0100
+@@ -162,6 +162,7 @@
+         <pathelement location="${build.classes.dir}"/>
+         <pathelement location="${build.test.dir}/classes"/>
+         <pathelement location="lib/junit_4/junit-4.5.jar"/>
++	<pathelement location="${complete.jar}"/>
+       </classpath>
+       <sysproperty key="java.library.path" value="${build.native.dir}"/>
+ 
