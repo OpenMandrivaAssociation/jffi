@@ -8,9 +8,9 @@
 
 Name:    jffi
 Version: 1.2.6
-Release: 3.0%{?dist}
+Release: 8.1
 Summary: An optimized Java interface to libffi 
-
+Group:	Development/Java
 
 License: LGPLv3+ or ASL 2.0
 URL:     http://github.com/jnr/%{name}/
@@ -29,7 +29,7 @@ BuildRequires: ffi-devel
 
 BuildRequires: ant
 BuildRequires: ant-junit
-BuildRequires: junit4
+BuildRequires: junit
 
 Requires: java
 Requires: jpackage-utils
@@ -46,12 +46,6 @@ An optimized Java interface to libffi
 # ppc{,64} fix
 # https://bugzilla.redhat.com/show_bug.cgi?id=561448#c9
 sed -i.cpu -e '/m\$(MODEL)/d' jni/GNUmakefile libtest/GNUmakefile
-%ifnarch %{ix86} x86_64
-rm -rf test/
-%endif
-
-# remove random executable bit
-chmod 0644 jni/jffi/jffi.h
 
 # remove uneccessary directories
 rm -rf archive/* jni/libffi/ jni/win32/ lib/CopyLibs/ lib/junit*
@@ -81,11 +75,10 @@ install -pm 644 pom.xml  \
 sed -i 's|-Werror||' libtest/GNUmakefile
 ant -Duse.system.libffi=1 test
 
-%files
+%files -f .mfiles
 %doc COPYING.GPL COPYING.LESSER LICENSE
 %{_jnidir}/%{name}.jar
 %{_mavenpomdir}/JPP-%{name}.pom
-%{_mavendepmapfragdir}/%{name}
 
 %changelog
 * Sun Aug 11 2013 Mat Booth <fedora@matbooth.co.uk> - 1.2.6-3
