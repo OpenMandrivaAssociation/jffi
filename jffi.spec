@@ -8,7 +8,7 @@
 
 Name:    jffi
 Version: 1.2.6
-Release: 8.2
+Release: 8.3
 Summary: An optimized Java interface to libffi 
 Group:	Development/Java
 
