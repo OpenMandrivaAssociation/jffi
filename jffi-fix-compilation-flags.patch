@@ -19,7 +19,7 @@
 -STRIP ?= strip -S
 +STRIP ?= /bin/true
 +
-+RPMFLAGS=$(shell rpm --eval %optflags)
++RPMFLAGS=$(shell rpm --eval %optflags) -fno-lto
  
  JDK_INCLUDES = -I"$(JDK_HOME)/include" -I"$(JDK_HOME)/include/$(OS)"
  IFLAGS = -I"$(BUILD_DIR)" -I"$(BUILD_DIR)"/jni -I$(SRC_DIR) -I"$(JFFI_SRC_DIR)"
