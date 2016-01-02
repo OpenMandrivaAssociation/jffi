@@ -1,5 +1,5 @@
---- jni/GNUmakefile.orig	2011-06-02 10:36:13.003446987 -0400
-+++ jni/GNUmakefile	2011-06-02 10:38:05.176447303 -0400
+--- jni/GNUmakefile.orig	2015-03-02 23:35:21.000000000 +0200
++++ jni/GNUmakefile	2015-04-30 18:16:46.270806239 +0300
 @@ -66,9 +66,9 @@ OFLAGS = -O2 $(JFLAGS)
  # MacOS headers aren't completely warning free, so turn them off
  WERROR = -Werror
@@ -7,8 +7,8 @@
 -  WFLAGS += -Wundef $(WERROR)
 +  WFLAGS += -Wundef
  endif
--WFLAGS += -W -Wall -Wno-unused -Wno-parentheses
-+WFLAGS += -W -Wall -Wno-parentheses
+-WFLAGS += -W -Wall -Wno-unused -Wno-parentheses -Wno-unused-parameter
++WFLAGS += -W -Wall -Wno-parentheses -Wno-unused-parameter
  PICFLAGS = -fPIC
  SOFLAGS = # Filled in for each OS specifically
  FFI_MMAP_EXEC = -DFFI_MMAP_EXEC_WRIT
@@ -19,12 +19,12 @@
 -STRIP ?= strip -S
 +STRIP ?= /bin/true
 +
-+RPMFLAGS=$(shell rpm --eval %optflags) -fno-lto
++RPMFLAGS=$(shell rpm --eval %optflags)
  
  JDK_INCLUDES = -I"$(JDK_HOME)/include" -I"$(JDK_HOME)/include/$(OS)"
  IFLAGS = -I"$(BUILD_DIR)" -I"$(BUILD_DIR)"/jni -I$(SRC_DIR) -I"$(JFFI_SRC_DIR)"
 -CFLAGS += $(OFLAGS) $(WFLAGS) $(IFLAGS) $(PICFLAGS) $(JDK_INCLUDES) $(LIBFFI_CFLAGS)
-+CFLAGS += $(OFLAGS) $(WFLAGS) $(IFLAGS) $(PICFLAGS) $(JDK_INCLUDES) $(LIBFFI_CFLAGS) $(RPMFLAGS)
++CFLAGS += $(OFLAGS) $(WFLAGS) $(IFLAGS) $(PICFLAGS) $(JDK_INCLUDES) $(LIBFFI_CFLAGS) $(RPMFLAGS) -fno-lto
  CFLAGS += -D_REENTRANT -D_LARGEFILE64_SOURCE -D_GNU_SOURCE
  
  ifeq ($(OS), win64)
