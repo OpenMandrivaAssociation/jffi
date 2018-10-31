@@ -8,7 +8,7 @@
 
 Name:           jffi
 Version:        1.2.9
-Release:        1.1
+Release:        1.2
 Summary:        Java Foreign Function Interface
 Group:		Development/Java
 License:        LGPLv3+ or ASL 2.0
