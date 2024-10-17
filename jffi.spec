@@ -12,7 +12,7 @@ Release:        1.2
 Summary:        Java Foreign Function Interface
 Group:		Development/Java
 License:        LGPLv3+ or ASL 2.0
-URL:            http://github.com/jnr/jffi
+URL:            https://github.com/jnr/jffi
 Source0:        https://github.com/%{cluster}/%{name}/archive/%{version}.zip
 Patch0:         jffi-fix-dependencies-in-build-xml.patch
 Patch1:         jffi-add-built-jar-to-test-classpath.patch
