@@ -1,185 +1,117 @@
-%{?_javapackages_macros:%_javapackages_macros}
-%define _enable_debug_packages %{nil}
-%define debug_package %{nil}
-%define _disable_lto 1
-
-%global cluster jnr
-%global sover 1.2
-
-Name:           jffi
-Version:        1.2.9
-Release:        1.2
-Summary:        Java Foreign Function Interface
+Name:		jffi
+Version:	1.4.7
+Release:	1
+Summary:	Java bindings for libffi
 Group:		Development/Java
-License:        LGPLv3+ or ASL 2.0
-URL:            https://github.com/jnr/jffi
-Source0:        https://github.com/%{cluster}/%{name}/archive/%{version}.zip
-Patch0:         jffi-fix-dependencies-in-build-xml.patch
-Patch1:         jffi-add-built-jar-to-test-classpath.patch
-Patch2:         jffi-fix-compilation-flags.patch
+License:	ASL 2.0 or LGPLv3+
+URL:		https://github.com/jnr/jffi
+Source0:	https://github.com/jnr/jffi/archive/refs/tags/jffi-%{version}.tar.gz
 
-BuildRequires:  maven-local
-BuildRequires:  ffi-devel
-BuildRequires:  ant
-BuildRequires:  junit
+BuildRequires:	make
+BuildRequires:	pkgconfig(libffi)
+BuildRequires:	python
+BuildSystem:	maven
 
 %description
-An optimized Java interface to libffi.
-
-%package native
-Summary:        %{name} JAR with native bits
-
-%description native
-This package contains %{name} JAR with native bits.
-
-%package javadoc
-Summary:        Javadoc for %{name}
-BuildArch:      noarch
-
-%description javadoc
-This package contains the API documentation for %{name}.
-
+Java Foreign Function Interface. The JNI library is built from source
+against the system libffi. The upstream native jar is a set of prebuilt
+binaries and is not packaged.
 
 %prep
-%setup -q
-%patch0
-%patch1
-%patch2
+%setup -q -n jffi-jffi-%{version}
+# archive/ holds prebuilt libjffi for other operating systems.
+rm -rf archive
+# A linker flag is not a file make can build.
+sed -i \
+	-e 's/^$(LIBJFFI):.*$(LIBFFI_LIBS)/$(LIBJFFI): $(OBJS)/' \
+	-e 's/^$(OBJS) : $(LIBFFI_LIBS)/$(OBJS):/' \
+	-e 's/^OFLAGS = -O2 $(JFLAGS)/OFLAGS = -g -O2 $(JFLAGS)/' \
+	-e 's/$(STRIP) $@/:/' \
+	jni/GNUmakefile
+mkdir -p src/main/resources
+cat > src/main/resources/boot.properties <<EOF
+jffi.boot.library.path=%{_libdir}
+EOF
+# jnr-parent forces --release 8, which hides sun.misc.Unsafe.
+# The compiler toolchain split wants a JDK 8 that we do not build against.
+python - <<'PY'
+import re
+from pathlib import Path
+path = Path("pom.xml")
+text = path.read_text()
+text = re.sub(r"\s*<parent>.*?</parent>", "", text, count=1, flags=re.S)
+text = text.replace(
+	"<artifactId>jffi</artifactId>",
+	"<groupId>com.github.jnr</groupId>\n  <artifactId>jffi</artifactId>",
+	1,
+)
+text = re.sub(
+	r"\s*<plugin>\s*<artifactId>maven-compiler-plugin</artifactId>.*?</plugin>",
+	"",
+	text,
+	count=1,
+	flags=re.S,
+)
+text = re.sub(
+	r"\s*<plugin>\s*<artifactId>maven-javadoc-plugin</artifactId>.*?</plugin>",
+	"",
+	text,
+	count=1,
+	flags=re.S,
+)
+text = re.sub(
+	r"\s*<plugin>\s*<groupId>org\.apache\.felix</groupId>\s*<artifactId>maven-bundle-plugin</artifactId>.*?</plugin>",
+	"",
+	text,
+	count=1,
+	flags=re.S,
+)
+text = re.sub(
+	r"\s*<plugin>\s*<groupId>org\.apache\.maven\.plugins</groupId>\s*<artifactId>maven-assembly-plugin</artifactId>.*?</plugin>",
+	"",
+	text,
+	count=1,
+	flags=re.S,
+)
+text = re.sub(
+	r"\s*<execution>\s*<phase>process-test-resources</phase>.*?</execution>",
+	"",
+	text,
+	count=1,
+	flags=re.S,
+)
+if "project.build.sourceEncoding" not in text:
+	text = text.replace(
+		"<properties>",
+		"<properties>\n    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>",
+		1,
+	)
+path.write_text(text)
+PY
 
-# ppc{,64} fix
-# https://bugzilla.redhat.com/show_bug.cgi?id=561448#c9
-sed -i.cpu -e '/m\$(MODEL)/d' jni/GNUmakefile libtest/GNUmakefile
+%build -a
+# version.xml is the JNI ABI (libjffi-1.2), not the Maven release.
+major=$(sed -n 's/.*jffi.version.major" value="\([0-9]*\)".*/\1/p' version.xml)
+minor=$(sed -n 's/.*jffi.version.minor" value="\([0-9]*\)".*/\1/p' version.xml)
+test -n "$major" -a -n "$minor"
+mkdir -p build/jni
+"$JAVA_HOME/bin/javac" -h build/jni -d build/jni-classes -classpath target/classes -implicit:none \
+	src/main/java/com/kenai/jffi/Foreign.java \
+	src/main/java/com/kenai/jffi/ObjectBuffer.java \
+	target/java/com/kenai/jffi/Version.java
+make -f jni/GNUmakefile \
+	JAVA_HOME="$JAVA_HOME" \
+	SRC_DIR="$PWD/jni" \
+	JNI_DIR="$PWD/jni" \
+	BUILD_DIR="$PWD/build/jni" \
+	VERSION="$major.$minor" \
+	USE_SYSTEM_LIBFFI=1
 
-# remove uneccessary directories
-rm -rf archive/* jni/libffi/ jni/win32/ lib/CopyLibs/ lib/junit*
-
-find ./ -name '*.jar' -exec rm -f '{}' \; 
-find ./ -name '*.class' -exec rm -f '{}' \; 
-
-build-jar-repository -s -p lib/ junit
-
-%mvn_package 'com.github.jnr:jffi::native:' native
-%mvn_file ':{*}' %{name}/@1 @1
-
-%build
-# ant will produce JAR with native bits
-ant jar build-native -Duse.system.libffi=1
-
-# maven will look for JAR with native bits in archive/
-cp -p dist/jffi-*-Linux.jar archive/
-
-%mvn_build
-
-%install
-%mvn_install
-
-# install *.so
-install -dm 755 %{buildroot}%{_libdir}/%{name}
-cp -rp target/jni/* %{buildroot}%{_libdir}/%{name}/
-# create version-less symlink for .so file
-sofile=`find %{buildroot}%{_libdir}/%{name} -name lib%{name}-%{sover}.so`
-ln -sr ${sofile} `dirname ${sofile}`/lib%{name}.so
-
-%check
-# skip tests on s390 until https://bugzilla.redhat.com/show_bug.cgi?id=1084914 is resolved
-%if 0
-%ifnarch s390
-# don't fail on unused parameters... (TODO: send patch upstream)
-sed -i 's|-Werror||' libtest/GNUmakefile
-ant -Duse.system.libffi=1 test
-%endif
-%endif
+%install -a
+major=$(sed -n 's/.*jffi.version.major" value="\([0-9]*\)".*/\1/p' version.xml)
+minor=$(sed -n 's/.*jffi.version.minor" value="\([0-9]*\)".*/\1/p' version.xml)
+install -D -p -m 755 "build/jni/libjffi-${major}.${minor}.so" "%{buildroot}%{_libdir}/libjffi-${major}.${minor}.so"
 
 %files -f .mfiles
-%doc COPYING.GPL COPYING.LESSER LICENSE
-
-%files native -f .mfiles-native
-%{_libdir}/%{name}
-%doc COPYING.GPL COPYING.LESSER LICENSE
-
-%files javadoc -f .mfiles-javadoc
-%doc COPYING.GPL COPYING.LESSER LICENSE
-
-%changelog
-* Tue May 5 2015 Alexander Kurtakov <akurtako@redhat.com> 1.2.9-1
-- Update to upstream 1.2.9.
-
-* Thu Apr 30 2015 Alexander Kurtakov <akurtako@redhat.com> 1.2.8-1
-- Update to upstream 1.2.8.
-
-* Fri Feb 20 2015 Michal Srb <msrb@redhat.com> - 1.2.7-5
-- Install version-less symlink for .so file
-
-* Fri Feb 20 2015 Michal Srb <msrb@redhat.com> - 1.2.7-4
-- Fix rpmlint warnings
-
-* Fri Feb 20 2015 Michal Srb <msrb@redhat.com> - 1.2.7-3
-- Install *.so file to %%{_libdir}/%%{name}/
-
-* Tue Feb 17 2015 Michal Srb <msrb@redhat.com> - 1.2.7-2
-- Build jffi-native
-- Introduce javadoc subpackage
-
-* Fri Dec 05 2014 Mo Morsi <mmorsi@redhat.com> - 1.2.7-1
-- Update to JFFI 1.2.7
-
-* Sat Aug 16 2014 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1.2.6-8
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_21_22_Mass_Rebuild
-
-* Thu Jun 12 2014 Alexander Kurtakov <akurtako@redhat.com> 1.2.6-7
-- Fix FTBFS.
-
-* Sun Jun 08 2014 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1.2.6-6
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_21_Mass_Rebuild
-
-* Mon Apr 07 2014 Dan Horák <dan[at]danny.cz> - 1.2.6-5
-- skip tests on s390 until https://bugzilla.redhat.com/show_bug.cgi?id=1084914 is resolved
-
-* Fri Mar 28 2014 Michael Simacek <msimacek@redhat.com> - 1.2.6-4
-- Use Requires: java-headless rebuild (#1067528)
-
-* Sun Aug 11 2013 Mat Booth <fedora@matbooth.co.uk> - 1.2.6-3
-- Remove BR on ant-nodeps, fixes FTBFS rhbz #992622
-
-* Sat Aug 03 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1.2.6-2
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_20_Mass_Rebuild
-
-* Tue Feb 05 2013 Bohuslav Kabrda <bkabrda@redhat.com> - 1.2.6-1
-- Updated to version 1.2.6.
-
-* Wed Dec 19 2012 Stanislav Ochotnicky <sochotnicky@redhat.com> - 1.0.10-4
-- revbump after jnidir change
-
-* Thu Jul 19 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1.0.10-3
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_18_Mass_Rebuild
-
-* Fri Jan 13 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1.0.10-2
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_17_Mass_Rebuild
-
-* Tue Aug 02 2011  Mo Morsi <mmorsi@redhat.com> - 1.0.10-1
-- Updated to most recent upstream release
-
-* Wed Jun 01 2011  Mo Morsi <mmorsi@redhat.com> - 1.0.9-1
-- Updated to most recent upstream release
-
-* Mon Oct 25 2010  <mmorsi@redhat.com> - 1.0.2-1
-- Updated to most recent upstream release
-
-* Wed Apr 14 2010  <mmorsi@redhat.com> - 0.6.5-4
-- added Mamoru Tasaka's fix for ppc{,64} to prep
-
-* Mon Mar 08 2010  <mmorsi@redhat.com> - 0.6.5-3
-- fixes to jffi from feedback
-- don't strip debuginfo, remove extraneous executable bits,
-
-* Tue Feb 23 2010  <mmorsi@redhat.com> - 0.6.5-2
-- fixes to jffi compilation process
-- fixes to spec to conform to package guidelines
-
-* Wed Feb 17 2010  <mmorsi@redhat.com> - 0.6.5-1
-- bumped version
-- fixed package to comply to fedora guidelines
-
-* Tue Jan 19 2010  <mmorsi@redhat.com> - 0.6.2-1
-- Initial build.
-
+%{_libdir}/libjffi-*.so
+%doc LICENSE README.md
