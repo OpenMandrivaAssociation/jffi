@@ -10,6 +10,9 @@ Source0:	https://github.com/jnr/jffi/archive/refs/tags/jffi-%{version}.tar.gz
 BuildRequires:	make
 BuildRequires:	pkgconfig(libffi)
 BuildRequires:	python
+# Literal, so the first rpmbuild -bs records them before sysjar is installed.
+BuildRequires:	maven
+BuildRequires:	java-current-devel
 BuildSystem:	maven
 
 %description
