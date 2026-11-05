@@ -77,6 +77,20 @@ text = re.sub(
 	flags=re.S,
 )
 text = re.sub(
+	r"\s*<plugin>\s*<groupId>org\.codehaus\.mojo</groupId>\s*<artifactId>build-helper-maven-plugin</artifactId>.*?</plugin>",
+	"",
+	text,
+	count=1,
+	flags=re.S,
+)
+text = re.sub(
+	r"\s*<plugin>\s*<groupId>org\.apache\.maven\.plugins</groupId>\s*<artifactId>maven-antrun-plugin</artifactId>.*?</plugin>",
+	"",
+	text,
+	count=1,
+	flags=re.S,
+)
+text = re.sub(
 	r"\s*<execution>\s*<phase>process-test-resources</phase>.*?</execution>",
 	"",
 	text,
@@ -92,6 +106,28 @@ if "project.build.sourceEncoding" not in text:
 path.write_text(text)
 PY
 
+%build -p
+# version.xml is the JNI ABI (libjffi-1.2), not the Maven release.
+# antrun used to generate this class. That plugin is not packaged.
+major=$(sed -n 's/.*jffi.version.major" value="\([0-9]*\)".*/\1/p' version.xml)
+minor=$(sed -n 's/.*jffi.version.minor" value="\([0-9]*\)".*/\1/p' version.xml)
+micro=$(sed -n 's/.*jffi.version.micro" value="\([0-9]*\)".*/\1/p' version.xml)
+test -n "$major" -a -n "$minor" -a -n "$micro"
+install -d src/main/java/com/kenai/jffi
+cat > src/main/java/com/kenai/jffi/Version.java <<EOF
+package com.kenai.jffi;
+import java.lang.annotation.Native;
+public final class Version {
+    private Version() {}
+    @Native
+    public static final int MAJOR = ${major};
+    @Native
+    public static final int MINOR = ${minor};
+    @Native
+    public static final int MICRO = ${micro};
+}
+EOF
+
 %build -a
 # version.xml is the JNI ABI (libjffi-1.2), not the Maven release.
 major=$(sed -n 's/.*jffi.version.major" value="\([0-9]*\)".*/\1/p' version.xml)
@@ -101,7 +137,7 @@ mkdir -p build/jni
 "$JAVA_HOME/bin/javac" -h build/jni -d build/jni-classes -classpath target/classes -implicit:none \
 	src/main/java/com/kenai/jffi/Foreign.java \
 	src/main/java/com/kenai/jffi/ObjectBuffer.java \
-	target/java/com/kenai/jffi/Version.java
+	src/main/java/com/kenai/jffi/Version.java
 make -f jni/GNUmakefile \
 	JAVA_HOME="$JAVA_HOME" \
 	SRC_DIR="$PWD/jni" \
